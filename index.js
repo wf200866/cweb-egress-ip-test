@@ -1,5 +1,4 @@
-const express = require('express');
-const app = express();
+const http = require('http');
 const PORT = process.env.PORT || 3000;
 
 async function fetchText(url) {
@@ -16,13 +15,16 @@ async function egressIp() {
   }
 }
 
-app.get('/', async (req, res) => {
-  const result = await egressIp();
-  res.type('text/plain');
-  if (result.ip) res.send(result.ip + '\n');
-  else res.status(502).send('error: ' + (result.error || 'unknown') + '\n');
+const server = http.createServer(async (req, res) => {
+  if (req.url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end('ok\n'); return; }
+  if (req.url === '/' || req.url === '') {
+    const result = await egressIp();
+    res.writeHead(result.ip ? 200 : 502, { 'Content-Type': 'text/plain' });
+    res.end(result.ip ? result.ip + '\n' : 'error: ' + (result.error || 'unknown') + '\n');
+    return;
+  }
+  res.writeHead(404, { 'Content-Type': 'text/plain' });
+  res.end('not found\n');
 });
 
-app.get('/health', (req, res) => res.type('text/plain').send('ok\n'));
-
-app.listen(PORT, '0.0.0.0', () => console.log('listening on ' + PORT));
+server.listen(PORT, '0.0.0.0', () => console.log('listening on ' + PORT));
